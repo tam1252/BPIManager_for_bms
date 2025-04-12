@@ -114,22 +114,26 @@ class BMSScoreAnalyzer:
         else:
             return min(-100 * (np.log(S_prime) ** p) / (np.log(Z_prime) ** p), -15)
 
-    def _objective_function(self, p, s1, k, z, m, s2):
-        """p値を最適化するための目的関数"""
-        rag = 0
-        for i in range(len(s1)):
-            rag += (self._calculate_bpi(s2[i], k, z, m, p) - s1[i]) ** 2
-        return rag
 
-    def _optimize_p(self, s1, k, z, m, s2):
-        """p値を最適化する関数"""
-        result = minimize(self._objective_function, 1.0, args=(s1, k, z, m, s2), bounds=[(0.8, 1.5)])
-        return result.x[0]
-
+    
     def _reverse_calculate_s(self, bpi_target, k, z, m, p):
         if z == m:
-            return float(round(m - (log(m - k) - (log(2 * (m - k)) * (bpi_target / 100) ** (1 / p))) ** math.e, 2))
-        return float(round(m - (log(m - k) - ((log(m - z) - log(m - k)) * (bpi_target / 100) ** (1 / p))) ** math.e, 2))
+            return float(round(m - (m - k) / (2 * (m - k)) ** ((bpi_target / 100) ** (1 / p)), 2))
+        return float(round(m - (m - k) * ((m - z) / (m - k)) ** ((bpi_target / 100) ** (1 / p)), 2))
+    
+    def _optimize_p(self, bpi_targets, actual_scores, k, z, m, min_p = 5000, max_p = 15000):
+        """実測値と計算値の差が最小になるようなpを求める関数"""
+        # 目的関数に固定パラメータを渡すためのlambda関数を作成
+
+        delta = 1e15
+        best_p = min_p
+        for p in range(min_p, max_p + 1):
+            p = p / 10000
+            tmp_delta = sum([(self._reverse_calculate_s(bpi_target, k, z, m, p) - actual_score) ** 2 for bpi_target, actual_score in zip(bpi_targets, actual_scores)])
+            if tmp_delta < delta:
+                delta = tmp_delta
+                best_p = p
+        return best_p
 
     def analyze(self):
         try:
@@ -164,7 +168,13 @@ class BMSScoreAnalyzer:
             all_scores = sorted(all_scores, reverse=True)
             self.clear_players = len(all_scores)
             if all_scores:
-                self.top_score = all_scores[0]
+                # 理論値超えスコアを弾く
+                while True:
+                    self.top_score = all_scores[0]
+                    if self.top_score > self.theoretical_score:
+                        all_scores.pop(0)
+                    else:
+                        break
                 self.average_score = round(statistics.mean(all_scores), 4)
                 self.std_dev_score = round(statistics.stdev(all_scores) , 4)
 
@@ -173,7 +183,7 @@ class BMSScoreAnalyzer:
 
                 # p値の最適化
                 if self.average_score is not None and self.top_score is not None and self.theoretical_score is not None and bpi_actual_scores:
-                    self.optimized_p = self._optimize_p(np.arange(10, 100, 10), self.average_score, self.top_score, self.theoretical_score, bpi_actual_scores)
+                    self.optimized_p = self._optimize_p(range(90, 0, -10), bpi_actual_scores, self.average_score, self.top_score, self.theoretical_score)
                     self.bpi_scores = [self._reverse_calculate_s(bpi, self.average_score, self.top_score, self.theoretical_score, self.optimized_p) for bpi in self._bpi_range]
                 else:
                     logging.warning("BPI計算に必要なデータが不足しています。")

@@ -129,7 +129,7 @@ class BMSScoreAnalyzer:
     def _reverse_calculate_s(self, bpi_target, k, z, m, p):
         if z == m:
             return float(round(m - (log(m - k) - (log(2 * (m - k)) * (bpi_target / 100) ** (1 / p))) ** math.e, 2))
-        return float(round(m - (log(m - k) + (log(m - z) - log(m - k))* (bpi_target / 100) ** (1 / p)) ** math.e, 2))
+        return float(round(m - (log(m - k) - ((log(m - z) - log(m - k)) * (bpi_target / 100) ** (1 / p))) ** math.e, 2))
 
     def analyze(self):
         try:

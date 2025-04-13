@@ -15,8 +15,10 @@ dependencies = [
     "pandas>=2.2.3",
     "polars>=1.27.1",
     "pyarrow>=19.0.1",
+    "pyodbc>=5.2.0",
     "requests>=2.32.3",
     "scipy>=1.15.2",
     "setuptools>=78.1.0",
+    "sqlalchemy>=2.0.40",
     "tqdm>=4.67.1",
 ]
